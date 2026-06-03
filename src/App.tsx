@@ -207,10 +207,16 @@ function AdminLogin({ onSuccess, onHome }: { onSuccess: () => void; onHome: () =
   );
 }
 
-// ── ADMIN ──
-function AdminPanel({ onHome }: { onHome: () => void }) {
-  const [auth, setAuth] = useState(false);
-  if (!auth) return <AdminLogin onSuccess={() => setAuth(true)} onHome={onHome} />;
+// ── ADMIN MAIN ──
+function AdminMain({ onHome }: { onHome: () => void }) {
+  const [survey, setSurveyState] = useState(() => loadSurvey() || { title: "", instructor: "", date: "", questions: defaultQuestions, published: false });
+  const [responses, setResponses] = useState(() => loadResponses());
+  const [tab, setTab] = useState(() => (loadSurvey()?.published ? "dashboard" : "design"));
+  const [newQ, setNewQ] = useState("");
+  const [newQType, setNewQType] = useState("scale");
+  const [report, setReport] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     const t = setInterval(() => setResponses(loadResponses()), 3000);
@@ -421,6 +427,12 @@ function AdminPanel({ onHome }: { onHome: () => void }) {
       </div>
     </div>
   );
+}
+
+function AdminPanel({ onHome }: { onHome: () => void }) {
+  const [auth, setAuth] = useState(false);
+  if (!auth) return <AdminLogin onSuccess={() => setAuth(true)} onHome={onHome} />;
+  return <AdminMain onHome={onHome} />;
 }
 
 // ── RESPONDENT ──
