@@ -187,6 +187,14 @@ function AdminPanel({ onHome }: { onHome: () => void }) {
   const [auth, setAuth] = useState(false);
   const [pwInput, setPwInput] = useState("");
   const [pwError, setPwError] = useState(false);
+  const [survey, setSurveyState] = useState(() => loadSurvey() || { title: "", instructor: "", date: "", questions: defaultQuestions, published: false });
+  const [responses, setResponses] = useState(() => loadResponses());
+  const [tab, setTab] = useState(() => (loadSurvey()?.published ? "dashboard" : "design"));
+  const [newQ, setNewQ] = useState("");
+  const [newQType, setNewQType] = useState("scale");
+  const [report, setReport] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   if (!auth) {
     return (
@@ -210,15 +218,6 @@ function AdminPanel({ onHome }: { onHome: () => void }) {
       </div>
     );
   }
-
-  const [survey, setSurveyState] = useState(() => loadSurvey() || { title: "", instructor: "", date: "", questions: defaultQuestions, published: false });
-  const [responses, setResponses] = useState(() => loadResponses());
-  const [tab, setTab] = useState(survey.published ? "dashboard" : "design");
-  const [newQ, setNewQ] = useState("");
-  const [newQType, setNewQType] = useState("scale");
-  const [report, setReport] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
 
   useEffect(() => {
     const t = setInterval(() => setResponses(loadResponses()), 3000);
