@@ -182,42 +182,35 @@ function RoleSelect({ onSelect }: { onSelect: (r: string) => void }) {
 
 const ADMIN_PW = "hakbigg_2026";
 
+function AdminLogin({ onSuccess, onHome }: { onSuccess: () => void; onHome: () => void }) {
+  const [pwInput, setPwInput] = useState("");
+  const [pwError, setPwError] = useState(false);
+  const check = () => { if (pwInput === ADMIN_PW) onSuccess(); else setPwError(true); };
+  return (
+    <div style={{ minHeight:"100vh", background:bg, display:"flex", alignItems:"center", justifyContent:"center", padding:"24px" }}>
+      <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@600;700&display=swap" rel="stylesheet" />
+      <div style={{ background:"#fff", borderRadius:"20px", padding:"40px 32px", boxShadow:"0 4px 24px rgba(0,0,0,0.08)", width:"100%", maxWidth:"360px", textAlign:"center" }}>
+        <div style={{ width:"56px", height:"56px", borderRadius:"50%", background:"linear-gradient(135deg,#f472b6,#f9a8c9)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"24px", margin:"0 auto 20px" }}>🔐</div>
+        <h2 style={{ fontFamily:"'Noto Serif KR',serif", fontSize:"20px", color:grayDark, marginBottom:"8px" }}>관리자 로그인</h2>
+        <p style={{ fontFamily:"'Noto Sans KR',sans-serif", fontSize:"13px", color:gray, marginBottom:"24px" }}>비밀번호를 입력해주세요</p>
+        <input type="password" value={pwInput}
+          onChange={e => { setPwInput(e.target.value); setPwError(false); }}
+          onKeyDown={e => e.key === "Enter" && check()}
+          placeholder="비밀번호"
+          style={{ width:"100%", padding:"12px 14px", borderRadius:"10px", border:`1.5px solid ${pwError ? "#e11d48" : grayMid}`, fontFamily:"'Noto Sans KR',sans-serif", fontSize:"14px", outline:"none", boxSizing:"border-box", marginBottom:"8px" }}
+        />
+        {pwError && <p style={{ color:"#e11d48", fontSize:"13px", marginBottom:"12px", fontFamily:"'Noto Sans KR',sans-serif" }}>비밀번호가 올바르지 않습니다.</p>}
+        <PrimaryBtn onClick={check} fullWidth>로그인</PrimaryBtn>
+        <div style={{ marginTop:"16px" }}><GhostBtn onClick={onHome}>← 홈으로</GhostBtn></div>
+      </div>
+    </div>
+  );
+}
+
 // ── ADMIN ──
 function AdminPanel({ onHome }: { onHome: () => void }) {
   const [auth, setAuth] = useState(false);
-  const [pwInput, setPwInput] = useState("");
-  const [pwError, setPwError] = useState(false);
-  const [survey, setSurveyState] = useState(() => loadSurvey() || { title: "", instructor: "", date: "", questions: defaultQuestions, published: false });
-  const [responses, setResponses] = useState(() => loadResponses());
-  const [tab, setTab] = useState(() => (loadSurvey()?.published ? "dashboard" : "design"));
-  const [newQ, setNewQ] = useState("");
-  const [newQType, setNewQType] = useState("scale");
-  const [report, setReport] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-
-  if (!auth) {
-    return (
-      <div style={{ minHeight:"100vh", background:bg, display:"flex", alignItems:"center", justifyContent:"center", padding:"24px" }}>
-        <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&family=Noto+Serif+KR:wght@600;700&display=swap" rel="stylesheet" />
-        <div style={{ background:"#fff", borderRadius:"20px", padding:"40px 32px", boxShadow:"0 4px 24px rgba(0,0,0,0.08)", width:"100%", maxWidth:"360px", textAlign:"center" }}>
-          <div style={{ width:"56px", height:"56px", borderRadius:"50%", background:"linear-gradient(135deg,#f472b6,#f9a8c9)", display:"flex", alignItems:"center", justifyContent:"center", fontSize:"24px", margin:"0 auto 20px" }}>🔐</div>
-          <h2 style={{ fontFamily:"'Noto Serif KR',serif", fontSize:"20px", color:grayDark, marginBottom:"8px" }}>관리자 로그인</h2>
-          <p style={{ fontFamily:"'Noto Sans KR',sans-serif", fontSize:"13px", color:gray, marginBottom:"24px" }}>비밀번호를 입력해주세요</p>
-          <input
-            type="password" value={pwInput}
-            onChange={e => { setPwInput(e.target.value); setPwError(false); }}
-            onKeyDown={e => { if (e.key === "Enter") { if (pwInput === ADMIN_PW) setAuth(true); else setPwError(true); }}}
-            placeholder="비밀번호"
-            style={{ width:"100%", padding:"12px 14px", borderRadius:"10px", border:`1.5px solid ${pwError ? "#e11d48" : grayMid}`, fontFamily:"'Noto Sans KR',sans-serif", fontSize:"14px", outline:"none", boxSizing:"border-box", marginBottom:"8px" }}
-          />
-          {pwError && <p style={{ color:"#e11d48", fontSize:"13px", marginBottom:"12px", fontFamily:"'Noto Sans KR',sans-serif" }}>비밀번호가 올바르지 않습니다.</p>}
-          <PrimaryBtn onClick={() => { if (pwInput === ADMIN_PW) setAuth(true); else setPwError(true); }} fullWidth>로그인</PrimaryBtn>
-          <div style={{ marginTop:"16px" }}><GhostBtn onClick={onHome}>← 홈으로</GhostBtn></div>
-        </div>
-      </div>
-    );
-  }
+  if (!auth) return <AdminLogin onSuccess={() => setAuth(true)} onHome={onHome} />;
 
   useEffect(() => {
     const t = setInterval(() => setResponses(loadResponses()), 3000);
