@@ -60,7 +60,7 @@ export default function App() {
 
   // ── styles
   const card: React.CSSProperties = { background: "#fff", borderRadius: "16px", padding: "24px", boxShadow: "0 2px 16px rgba(0,0,0,0.06)", marginBottom: "16px" };
-  const inp: React.CSSProperties = { width: "100%", padding: "11px 14px", borderRadius: "10px", border: `1.5px solid ${grayM}`, fontFamily: "'Noto Sans KR',sans-serif", fontSize: "14px", outline: "none", boxSizing: "border-box", background: "#fff" };
+  const inp: React.CSSProperties = { width: "100%", padding: "11px 14px", borderRadius: "10px", border: `1.5px solid ${grayM}`, fontFamily: "'Noto Sans KR',sans-serif", fontSize: "14px", outline: "none", boxSizing: "border-box", background: "#fff", color: "#374151" };
   const lbl: React.CSSProperties = { fontFamily: "'Noto Sans KR',sans-serif", fontSize: "12px", fontWeight: 700, color: gray, marginBottom: "5px", display: "block" };
 
   const PBtn = ({ children, onClick, full }: { children: React.ReactNode; onClick?: () => void; full?: boolean }) => (
