@@ -8,6 +8,7 @@ const DEFAULT_QUESTIONS = [
   { id: 4, text: "교육에서 가장 유익했던 점은 무엇인가요?", type: "text" },
   { id: 5, text: "개선이 필요한 부분이 있다면 무엇인가요?", type: "text" },
 ];
+
 const ADMIN_PW = "hakbigg_2026";
 const DB_URL = "https://edu-survey-app-b1fb0-default-rtdb.firebaseio.com";
 
@@ -25,9 +26,11 @@ const dbGet = async (path: string) => {
   const res = await fetch(`${DB_URL}/${path}.json`);
   return res.ok ? res.json() : null;
 };
+
 const dbSet = async (path: string, data: unknown) => {
   await fetch(`${DB_URL}/${path}.json`, { method: "PUT", body: JSON.stringify(data) });
 };
+
 const dbPush = async (path: string, data: unknown) => {
   await fetch(`${DB_URL}/${path}.json`, { method: "POST", body: JSON.stringify(data) });
 };
@@ -37,7 +40,13 @@ export default function App() {
   const [adminAuth, setAdminAuth] = useState(false);
   const [pw, setPw] = useState("");
   const [pwErr, setPwErr] = useState(false);
-  const [survey, setSurveyState] = useState<any>(() => ({ title: "", instructor: "", date: "", questions: DEFAULT_QUESTIONS, published: false }));
+  const [survey, setSurveyState] = useState<any>(() => ({
+    title: "",
+    instructor: "",
+    date: "",
+    questions: DEFAULT_QUESTIONS,
+    published: false
+  }));
   const [responses, setResponses] = useState<any[]>([]);
   const [tab, setTab] = useState("design");
   const [newQ, setNewQ] = useState("");
@@ -86,12 +95,31 @@ export default function App() {
 
   const base = window.location.href.split("#")[0];
 
-  const card: React.CSSProperties = { background: "#fff", borderRadius: "16px", padding: "24px", boxShadow: "0 2px 16px rgba(0,0,0,0.06)", marginBottom: "16px" };
-  const inp: React.CSSProperties = { width: "100%", padding: "11px 14px", borderRadius: "10px", border: `1.5px solid ${grayM}`, fontFamily: "'Noto Sans KR',sans-serif", fontSize: "14px", outline: "none", boxSizing: "border-box", background: "#fff", color: grayD };
+  const card: React.CSSProperties = {
+    background: "#fff",
+    borderRadius: "16px",
+    padding: "24px",
+    boxShadow: "0 2px 16px rgba(0,0,0,0.06)",
+    marginBottom: "16px"
+  };
+
+  const inp: React.CSSProperties = {
+    width: "100%",
+    padding: "11px 14px",
+    borderRadius: "10px",
+    border: `1.5px solid ${grayM}`,
+    fontFamily: "'Noto Sans KR',sans-serif",
+    fontSize: "14px",
+    outline: "none",
+    boxSizing: "border-box",
+    background: "#fff",
+    color: grayD
+  };
 
   const PBtn = ({ children, onClick, full }: { children: React.ReactNode; onClick?: () => void; full?: boolean }) => (
     <button onClick={onClick} style={{ padding: "12px 24px", borderRadius: "10px", border: "none", cursor: "pointer", fontFamily: "'Noto Sans KR',sans-serif", fontWeight: 700, fontSize: "14px", background: "linear-gradient(135deg,#f472b6,#f9a8c9)", color: "#fff", boxShadow: "0 4px 14px rgba(244,114,182,0.35)", width: full ? "100%" : undefined }}>{children}</button>
   );
+
   const GBtn = ({ children, onClick, red }: { children: React.ReactNode; onClick?: () => void; red?: boolean }) => (
     <button onClick={onClick} style={{ padding: "11px 20px", borderRadius: "10px", border: `1.5px solid ${red ? "#fca5a5" : grayM}`, cursor: "pointer", fontFamily: "'Noto Sans KR',sans-serif", fontWeight: 600, fontSize: "14px", background: "#fff", color: red ? "#e11d48" : gray }}>{children}</button>
   );
@@ -162,6 +190,7 @@ export default function App() {
       await setSurvey((d: any) => ({ ...d, published: true }));
       setTab("dashboard");
     };
+
     const resetAll = async () => {
       if (!window.confirm("모든 데이터를 초기화할까요?")) return;
       const empty = { title: "", instructor: "", date: "", questions: DEFAULT_QUESTIONS, published: false };
@@ -172,17 +201,11 @@ export default function App() {
       setReport("");
       setTab("design");
     };
+
     const downloadCSV = () => {
       if (responses.length === 0) return;
       const headers = ["제출시각", ...survey.questions.map((q: any) => q.text)];
-      const rows = responses.map((r: any) => [
-        r.submittedAt,
-        ...survey.questions.map((q: any) => {
-          const val = r.answers[q.id];
-          if (val === undefined || val === null) return "";
-          return String(val).replace(/,/g, "，").replace(/\n/g, " ");
-        })
-      ]);
+      const rows = responses.map((r: any) => [r.submittedAt, ...survey.questions.map((q: any) => { const val = r.answers[q.id]; if (val === undefined || val === null) return ""; return String(val).replace(/,/g, "，").replace(/\n/g, " "); })]);
       const bom = "\uFEFF";
       const csv = bom + [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(",")).join("\n");
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -195,7 +218,9 @@ export default function App() {
     };
 
     const genReport = async () => {
-      setReporting(true); setReport("");
+      setReporting(true);
+      setReport("");
+      
       const summary = survey.questions.map((q: any) => {
         if (q.type === "scale") {
           const scores = responses.map((r: any) => r.answers[q.id]).filter(Boolean) as number[];
@@ -205,12 +230,44 @@ export default function App() {
         const texts = responses.map((r: any) => r.answers[q.id]).filter(Boolean) as string[];
         return `[주관식] ${q.text}\n${texts.map((t, i) => `(${i + 1}) ${t}`).join(" | ")}`;
       }).join("\n\n");
+
       try {
+        const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+        
+        // [수정 포인트 1] 프론트엔드 환경변수 세팅 미비 검증 로직 추가
+        if (!apiKey) {
+          throw new Error("VITE_GEMINI_API_KEY 환경 변수가 세팅되지 않았습니다. .env 파일이나 플랫폼 환경 변수를 확인해주세요.");
+        }
+
         const prompt = `교육 평가 보고서 작성:\n교육명: ${survey.title} | 강사: ${survey.instructor || "미기재"} | 응답자: ${responses.length}명\n\n${summary}\n\n1.종합 만족도(★별점) 2.항목별 분석 3.주관식 인사이트 4.개선 권고 3가지 5.결론`;
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${import.meta.env.VITE_GEMINI_API_KEY}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) });
+        
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+        });
+
         const data = await res.json();
-        setReport(data.candidates?.[0]?.content?.parts?.[0]?.text || "생성 실패");
-      } catch { setReport("오류가 발생했습니다."); }
+        console.log("Gemini API Response JSON:", data); // 디버깅용 API 응답 원본 출력
+
+        // [수정 포인트 2] 구글 서버단 에러(인증 오류, 할당량 초과 등)를 catch문으로 직접 토스
+        if (data.error) {
+          throw new Error(`Gemini API 오류: ${data.error.message} (코드: ${data.error.code})`);
+        }
+
+        const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        
+        // [수정 포인트 3] 세이프티 필터 작동 등으로 텍스트 필드가 빈 값일 때 예외 처리 추가
+        if (!generatedText) {
+          throw new Error("API 응답은 성공적이나 반환된 텍스트가 비어 있습니다. (콘텐츠 차단 혹은 응답 구조 변경 가능성)");
+        }
+
+        setReport(generatedText);
+      } catch (error: any) {
+        console.error("AI Report Error Detail:", error);
+        // [수정 포인트 4] "생성 실패" 대신 유저가 눈으로 볼 수 있게 구체적 원인 출력
+        setReport(`오류가 발생했습니다.\n원인: ${error.message || error}`);
+      }
       setReporting(false);
     };
 
@@ -231,107 +288,99 @@ export default function App() {
               <GBtn onClick={() => { window.location.hash = ""; }}>← 홈</GBtn>
             </div>
           </div>
-
           <div style={{ display: "flex", gap: "4px", background: grayL, borderRadius: "12px", padding: "4px", marginBottom: "20px" }}>
             {[["design", "⚙️ 설문 설계"], ["dashboard", "📊 응답 현황"], ["report", "🤖 AI 보고서"]].map(([s, l]) => (
               <button key={s} onClick={() => setTab(s)} style={{ flex: 1, padding: "10px", borderRadius: "9px", border: "none", cursor: "pointer", fontFamily: "'Noto Sans KR',sans-serif", fontWeight: 700, fontSize: "13px", background: tab === s ? "#fff" : "transparent", color: tab === s ? pinkD : gray, boxShadow: tab === s ? "0 2px 8px rgba(0,0,0,0.08)" : "none" }}>{l}</button>
             ))}
           </div>
-
-          {tab === "design" && (
-            <>
-              <div style={card}>
-                <p style={{ fontFamily: "'Noto Sans KR',sans-serif", fontSize: "13px", fontWeight: 700, color: pinkD, marginBottom: "16px", marginTop: 0 }}>📌 교육 기본 정보</p>
-                <div style={{ marginBottom: "12px" }}>
-                  <label style={{ fontFamily: "'Noto Sans KR',sans-serif", fontSize: "12px", fontWeight: 700, color: gray, marginBottom: "5px", display: "block" }}>교육명 *</label>
-                  <input style={inp} value={survey.title} onChange={e => setSurvey((d: any) => ({ ...d, title: e.target.value }))} placeholder="예: 2025년 상반기 리더십 교육" />
+          {tab === "design" && (<>
+            <div style={card}>
+              <p style={{ fontFamily: "'Noto Sans KR',sans-serif", fontSize: "13px", fontWeight: 700, color: pinkD, marginBottom: "16px", marginTop: 0 }}>📌 교육 기본 정보</p>
+              <div style={{ marginBottom: "12px" }}>
+                <label style={{ fontFamily: "'Noto Sans KR',sans-serif", fontSize: "12px", fontWeight: 700, color: gray, marginBottom: "5px", display: "block" }}>교육명 *</label>
+                <input style={inp} value={survey.title} onChange={e => setSurvey((d: any) => ({ ...d, title: e.target.value }))} placeholder="예: 2025년 상반기 리더십 교육" />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                <div>
+                  <label style={{ fontFamily: "'Noto Sans KR',sans-serif", fontSize: "12px", fontWeight: 700, color: gray, marginBottom: "5px", display: "block" }}>강사명</label>
+                  <input style={inp} value={survey.instructor} onChange={e => setSurvey((d: any) => ({ ...d, instructor: e.target.value }))} placeholder="강사 이름" />
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                  <div>
-                    <label style={{ fontFamily: "'Noto Sans KR',sans-serif", fontSize: "12px", fontWeight: 700, color: gray, marginBottom: "5px", display: "block" }}>강사명</label>
-                    <input style={inp} value={survey.instructor} onChange={e => setSurvey((d: any) => ({ ...d, instructor: e.target.value }))} placeholder="강사 이름" />
-                  </div>
-                  <div>
-                    <label style={{ fontFamily: "'Noto Sans KR',sans-serif", fontSize: "12px", fontWeight: 700, color: gray, marginBottom: "5px", display: "block" }}>교육 일자</label>
-                    <input style={inp} type="date" value={survey.date} onChange={e => setSurvey((d: any) => ({ ...d, date: e.target.value }))} />
-                  </div>
+                <div>
+                  <label style={{ fontFamily: "'Noto Sans KR',sans-serif", fontSize: "12px", fontWeight: 700, color: gray, marginBottom: "5px", display: "block" }}>교육 일자</label>
+                  <input style={inp} type="date" value={survey.date} onChange={e => setSurvey((d: any) => ({ ...d, date: e.target.value }))} />
                 </div>
               </div>
+            </div>
+            <div style={card}>
+              <p style={{ fontFamily: "'Noto Sans KR',sans-serif", fontSize: "13px", fontWeight: 700, color: pinkD, marginBottom: "16px", marginTop: 0 }}>📝 설문 항목</p>
+              {survey.questions.map((q: any, i: number) => (
+                <div key={q.id} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "11px 13px", borderRadius: "10px", background: grayL, marginBottom: "8px" }}>
+                  <span style={{ fontWeight: 700, color: pink, fontSize: "13px", minWidth: "20px", fontFamily: "'Noto Sans KR',sans-serif" }}>{i + 1}</span>
+                  <span style={{ flex: 1, fontSize: "13px", color: grayD, fontFamily: "'Noto Sans KR',sans-serif" }}>{q.text}</span>
+                  <span style={{ fontSize: "11px", padding: "3px 9px", borderRadius: "20px", background: q.type === "scale" ? pinkL : grayL, color: q.type === "scale" ? pinkD : gray, fontWeight: 600, fontFamily: "'Noto Sans KR',sans-serif" }}>{q.type === "scale" ? "5점 척도" : "주관식"}</span>
+                  <button onClick={() => setSurvey((d: any) => ({ ...d, questions: d.questions.filter((x: any) => x.id !== q.id) }))} style={{ background: "none", border: "none", color: "#e11d48", cursor: "pointer", fontSize: "15px" }}>✕</button>
+                </div>
+              ))}
+              <div style={{ display: "flex", gap: "8px", marginTop: "14px", flexWrap: "wrap" }}>
+                <input style={{ ...inp, flex: 1, minWidth: "180px" }} value={newQ} onChange={e => setNewQ(e.target.value)} placeholder="새 질문 입력" onKeyDown={e => { if (e.key === "Enter" && newQ.trim()) { setSurvey((d: any) => ({ ...d, questions: [...d.questions, { id: Date.now(), text: newQ.trim(), type: newQType }] })); setNewQ(""); } }} />
+                <select value={newQType} onChange={e => setNewQType(e.target.value)} style={{ padding: "11px 14px", borderRadius: "10px", border: `1.5px solid ${grayM}`, fontFamily: "'Noto Sans KR',sans-serif", fontSize: "14px", outline: "none", background: "#fff", color: grayD }}>
+                  <option value="scale">5점 척도</option>
+                  <option value="text">주관식</option>
+                </select>
+                <GBtn onClick={() => { if (newQ.trim()) { setSurvey((d: any) => ({ ...d, questions: [...d.questions, { id: Date.now(), text: newQ.trim(), type: newQType }] })); setNewQ(""); } }}>+ 추가</GBtn>
+              </div>
+            </div>
+            {err && <p style={{ color: "#e11d48", fontSize: "13px", marginBottom: "12px", fontFamily: "'Noto Sans KR',sans-serif" }}>{err}</p>}
+            <div style={{ display: "flex", gap: "10px" }}>
+              <PBtn full onClick={publish}>{survey.published ? "설문 수정 완료 ✓" : "설문 게시 →"}</PBtn>
+              {survey.published && <GBtn onClick={() => setSurvey((d: any) => ({ ...d, published: false }))}>게시 중단</GBtn>}
+            </div>
+          </>)}
+          {tab === "dashboard" && (<>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px", marginBottom: "16px" }}>
+              {[{ l: "총 응답자", v: `${responses.length}명`, i: "👥" }, { l: "설문 항목", v: `${survey.questions.length}개`, i: "📋" }, { l: "상태", v: survey.published ? "게시 중" : "미게시", i: survey.published ? "🟢" : "🟡" }].map(({ l, v, i }) => (
+                <div key={l} style={{ background: "#fff", borderRadius: "16px", padding: "18px 12px", boxShadow: "0 2px 16px rgba(0,0,0,0.06)", textAlign: "center" }}>
+                  <div style={{ fontSize: "22px", marginBottom: "6px" }}>{i}</div>
+                  <div style={{ fontFamily: "'Noto Serif KR',serif", fontSize: "18px", fontWeight: 700, color: pinkD }}>{v}</div>
+                  <div style={{ fontSize: "12px", color: gray, fontFamily: "'Noto Sans KR',sans-serif" }}>{l}</div>
+                </div>
+              ))}
+            </div>
+            {survey.questions.filter((q: any) => q.type === "scale").map((q: any) => {
+              const sc = responses.map((r: any) => r.answers[q.id]).filter(Boolean) as number[];
+              const avg = sc.length ? sc.reduce((a: number, b: number) => a + b, 0) / sc.length : 0;
+              return (
+                <div key={q.id} style={{ background: "#fff", borderRadius: "16px", padding: "16px 20px", boxShadow: "0 2px 16px rgba(0,0,0,0.06)", marginBottom: "10px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
+                    <span style={{ fontSize: "13px", color: grayD, fontFamily: "'Noto Sans KR',sans-serif" }}>{q.text}</span>
+                    <span style={{ fontWeight: 700, color: pinkD, fontFamily: "'Noto Serif KR',serif" }}>{avg.toFixed(1)}/5.0</span>
+                  </div>
+                  <div style={{ height: "8px", background: grayL, borderRadius: "4px", overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${(avg / 5) * 100}%`, background: "linear-gradient(90deg,#f9a8c9,#f472b6)", borderRadius: "4px" }} />
+                  </div>
+                </div>
+              );
+            })}
+            {responses.length > 0 ? (
               <div style={card}>
-                <p style={{ fontFamily: "'Noto Sans KR',sans-serif", fontSize: "13px", fontWeight: 700, color: pinkD, marginBottom: "16px", marginTop: 0 }}>📝 설문 항목</p>
-                {survey.questions.map((q: any, i: number) => (
-                  <div key={q.id} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "11px 13px", borderRadius: "10px", background: grayL, marginBottom: "8px" }}>
-                    <span style={{ fontWeight: 700, color: pink, fontSize: "13px", minWidth: "20px", fontFamily: "'Noto Sans KR',sans-serif" }}>{i + 1}</span>
-                    <span style={{ flex: 1, fontSize: "13px", color: grayD, fontFamily: "'Noto Sans KR',sans-serif" }}>{q.text}</span>
-                    <span style={{ fontSize: "11px", padding: "3px 9px", borderRadius: "20px", background: q.type === "scale" ? pinkL : grayL, color: q.type === "scale" ? pinkD : gray, fontWeight: 600, fontFamily: "'Noto Sans KR',sans-serif" }}>{q.type === "scale" ? "5점 척도" : "주관식"}</span>
-                    <button onClick={() => setSurvey((d: any) => ({ ...d, questions: d.questions.filter((x: any) => x.id !== q.id) }))} style={{ background: "none", border: "none", color: "#e11d48", cursor: "pointer", fontSize: "15px" }}>✕</button>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+                  <p style={{ fontFamily: "'Noto Sans KR',sans-serif", fontSize: "12px", fontWeight: 700, color: pinkD, margin: 0 }}>응답 목록</p>
+                  <button onClick={downloadCSV} style={{ padding: "7px 14px", borderRadius: "8px", border: `1.5px solid ${pink}`, background: pinkL, color: pinkD, fontFamily: "'Noto Sans KR',sans-serif", fontWeight: 700, fontSize: "12px", cursor: "pointer" }}>⬇ CSV 다운로드</button>
+                </div>
+                {responses.map((r: any, i: number) => (
+                  <div key={i} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 0", borderBottom: i < responses.length - 1 ? `1px solid ${grayL}` : "none" }}>
+                    <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: pinkL, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 700, color: pinkD, fontFamily: "'Noto Sans KR',sans-serif" }}>{i + 1}</div>
+                    <span style={{ fontSize: "14px", color: grayD, fontFamily: "'Noto Sans KR',sans-serif" }}>{r.name}</span>
+                    <span style={{ marginLeft: "auto", fontSize: "11px", color: "#9ca3af", fontFamily: "'Noto Sans KR',sans-serif" }}>{r.submittedAt}</span>
                   </div>
                 ))}
-                <div style={{ display: "flex", gap: "8px", marginTop: "14px", flexWrap: "wrap" }}>
-                  <input style={{ ...inp, flex: 1, minWidth: "180px" }} value={newQ} onChange={e => setNewQ(e.target.value)} placeholder="새 질문 입력" onKeyDown={e => { if (e.key === "Enter" && newQ.trim()) { setSurvey((d: any) => ({ ...d, questions: [...d.questions, { id: Date.now(), text: newQ.trim(), type: newQType }] })); setNewQ(""); } }} />
-                  <select value={newQType} onChange={e => setNewQType(e.target.value)} style={{ padding: "11px 14px", borderRadius: "10px", border: `1.5px solid ${grayM}`, fontFamily: "'Noto Sans KR',sans-serif", fontSize: "14px", outline: "none", background: "#fff", color: grayD }}>
-                    <option value="scale">5점 척도</option>
-                    <option value="text">주관식</option>
-                  </select>
-                  <GBtn onClick={() => { if (newQ.trim()) { setSurvey((d: any) => ({ ...d, questions: [...d.questions, { id: Date.now(), text: newQ.trim(), type: newQType }] })); setNewQ(""); } }}>+ 추가</GBtn>
-                </div>
               </div>
-              {err && <p style={{ color: "#e11d48", fontSize: "13px", marginBottom: "12px", fontFamily: "'Noto Sans KR',sans-serif" }}>{err}</p>}
-              <div style={{ display: "flex", gap: "10px" }}>
-                <PBtn full onClick={publish}>{survey.published ? "설문 수정 완료 ✓" : "설문 게시 →"}</PBtn>
-                {survey.published && <GBtn onClick={() => setSurvey((d: any) => ({ ...d, published: false }))}>게시 중단</GBtn>}
+            ) : (
+              <div style={{ textAlign: "center", padding: "40px", color: gray, fontFamily: "'Noto Sans KR',sans-serif", fontSize: "14px" }}>
+                <div style={{ fontSize: "32px", marginBottom: "12px" }}>⏳</div>아직 응답이 없습니다.
               </div>
-            </>
-          )}
-
-          {tab === "dashboard" && (
-            <>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px", marginBottom: "16px" }}>
-                {[{ l: "총 응답자", v: `${responses.length}명`, i: "👥" }, { l: "설문 항목", v: `${survey.questions.length}개`, i: "📋" }, { l: "상태", v: survey.published ? "게시 중" : "미게시", i: survey.published ? "🟢" : "🟡" }].map(({ l, v, i }) => (
-                  <div key={l} style={{ background: "#fff", borderRadius: "16px", padding: "18px 12px", boxShadow: "0 2px 16px rgba(0,0,0,0.06)", textAlign: "center" }}>
-                    <div style={{ fontSize: "22px", marginBottom: "6px" }}>{i}</div>
-                    <div style={{ fontFamily: "'Noto Serif KR',serif", fontSize: "18px", fontWeight: 700, color: pinkD }}>{v}</div>
-                    <div style={{ fontSize: "12px", color: gray, fontFamily: "'Noto Sans KR',sans-serif" }}>{l}</div>
-                  </div>
-                ))}
-              </div>
-              {survey.questions.filter((q: any) => q.type === "scale").map((q: any) => {
-                const sc = responses.map((r: any) => r.answers[q.id]).filter(Boolean) as number[];
-                const avg = sc.length ? sc.reduce((a: number, b: number) => a + b, 0) / sc.length : 0;
-                return (
-                  <div key={q.id} style={{ background: "#fff", borderRadius: "16px", padding: "16px 20px", boxShadow: "0 2px 16px rgba(0,0,0,0.06)", marginBottom: "10px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-                      <span style={{ fontSize: "13px", color: grayD, fontFamily: "'Noto Sans KR',sans-serif" }}>{q.text}</span>
-                      <span style={{ fontWeight: 700, color: pinkD, fontFamily: "'Noto Serif KR',serif" }}>{avg.toFixed(1)}/5.0</span>
-                    </div>
-                    <div style={{ height: "8px", background: grayL, borderRadius: "4px", overflow: "hidden" }}>
-                      <div style={{ height: "100%", width: `${(avg / 5) * 100}%`, background: "linear-gradient(90deg,#f9a8c9,#f472b6)", borderRadius: "4px" }} />
-                    </div>
-                  </div>
-                );
-              })}
-              {responses.length > 0 ? (
-                <div style={card}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
-                    <p style={{ fontFamily: "'Noto Sans KR',sans-serif", fontSize: "12px", fontWeight: 700, color: pinkD, margin: 0 }}>응답 목록</p>
-                    <button onClick={downloadCSV} style={{ padding: "7px 14px", borderRadius: "8px", border: `1.5px solid ${pink}`, background: pinkL, color: pinkD, fontFamily: "'Noto Sans KR',sans-serif", fontWeight: 700, fontSize: "12px", cursor: "pointer" }}>⬇ CSV 다운로드</button>
-                  </div>
-                  {responses.map((r: any, i: number) => (
-                    <div key={i} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 0", borderBottom: i < responses.length - 1 ? `1px solid ${grayL}` : "none" }}>
-                      <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: pinkL, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 700, color: pinkD, fontFamily: "'Noto Sans KR',sans-serif" }}>{i + 1}</div>
-                      <span style={{ fontSize: "14px", color: grayD, fontFamily: "'Noto Sans KR',sans-serif" }}>{r.name}</span>
-                      <span style={{ marginLeft: "auto", fontSize: "11px", color: "#9ca3af", fontFamily: "'Noto Sans KR',sans-serif" }}>{r.submittedAt}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div style={{ textAlign: "center", padding: "40px", color: gray, fontFamily: "'Noto Sans KR',sans-serif", fontSize: "14px" }}>
-                  <div style={{ fontSize: "32px", marginBottom: "12px" }}>⏳</div>아직 응답이 없습니다.
-                </div>
-              )}
-            </>
-          )}
-
+            )}
+          </>)}
           {tab === "report" && (
             responses.length === 0 ? (
               <div style={{ ...card, textAlign: "center", padding: "48px" }}><div style={{ fontSize: "36px", marginBottom: "12px" }}>📭</div><p style={{ fontFamily: "'Noto Sans KR',sans-serif", color: gray }}>응답 데이터가 없습니다.</p></div>
@@ -428,6 +477,5 @@ export default function App() {
       </div>
     );
   }
-
   return null;
 }
