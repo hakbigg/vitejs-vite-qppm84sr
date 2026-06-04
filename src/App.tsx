@@ -21,8 +21,10 @@ const grayD = "#374151";
 const BG = "#fdf2f8";
 
 // Firebase REST API helpers
-const res = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
-                                                                  
+const dbGet = async (path: string) => {
+  const res = await fetch(`${DB_URL}/${path}.json`);
+  return res.ok ? res.json() : null;
+};
 const dbSet = async (path: string, data: unknown) => {
   await fetch(`${DB_URL}/${path}.json`, { method: "PUT", body: JSON.stringify(data) });
 };
@@ -182,7 +184,7 @@ export default function App() {
         return `[주관식] ${q.text}\n${texts.map((t, i) => `(${i + 1}) ${t}`).join(" | ")}`;
       }).join("\n\n");
       try {
-        const res = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, messages: [{ role: "user", content: `교육 평가 보고서 작성:\n교육명: ${survey.title} | 강사: ${survey.instructor || "미기재"} | 응답자: ${responses.length}명\n\n${summary}\n\n1.종합 만족도(★별점) 2.항목별 분석 3.주관식 인사이트 4.개선 권고 3가지 5.결론` }] }) });
+        const res = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "Content-Type": "application/json", "x-api-key": import.meta.env.VITE_ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" }, body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, messages: [{ role: "user", content: `교육 평가 보고서 작성:\n교육명: ${survey.title} | 강사: ${survey.instructor || "미기재"} | 응답자: ${responses.length}명\n\n${summary}\n\n1.종합 만족도(★별점) 2.항목별 분석 3.주관식 인사이트 4.개선 권고 3가지 5.결론` }] }) });
         const data = await res.json();
         setReport(data.content?.map((b: any) => b.text || "").join("\n") || "생성 실패");
       } catch { setReport("오류가 발생했습니다."); }
