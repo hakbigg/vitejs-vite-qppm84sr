@@ -5,7 +5,7 @@ const DEFAULT_QUESTIONS = [
   { id: 1, text: "교육 내용은 업무에 도움이 되었나요?", type: "scale" },
   { id: 2, text: "강사의 전달력은 어떠했나요?", type: "scale" },
   { id: 3, text: "교육 시간은 적절했나요?", type: "scale" },
-  { id: 4, text: "교육에서 가장 유익했던 점은 무엇인가요?", type: "text" 
+  { id: 4, text: "교육에서 가장 유익했던 점은 무엇인가요?", type: "text" },
   { id: 5, text: "개선이 필요한 부분이 있다면 무엇인가요?", type: "text" },
 ];
 const ADMIN_PW = "hakbigg_2026";
