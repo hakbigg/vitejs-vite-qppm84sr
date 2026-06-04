@@ -172,6 +172,28 @@ export default function App() {
       setReport("");
       setTab("design");
     };
+    const downloadCSV = () => {
+      if (responses.length === 0) return;
+      const headers = ["제출시각", ...survey.questions.map((q: any) => q.text)];
+      const rows = responses.map((r: any) => [
+        r.submittedAt,
+        ...survey.questions.map((q: any) => {
+          const val = r.answers[q.id];
+          if (val === undefined || val === null) return "";
+          return String(val).replace(/,/g, "，").replace(/\n/g, " ");
+        })
+      ]);
+      const bom = "\uFEFF";
+      const csv = bom + [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(",")).join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${survey.title || "교육평가"}_응답데이터_${new Date().toLocaleDateString("ko-KR").replace(/\. /g, "-").replace(".", "")}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    };
+
     const genReport = async () => {
       setReporting(true); setReport("");
       const summary = survey.questions.map((q: any) => {
@@ -289,7 +311,10 @@ export default function App() {
               })}
               {responses.length > 0 ? (
                 <div style={card}>
-                  <p style={{ fontFamily: "'Noto Sans KR',sans-serif", fontSize: "12px", fontWeight: 700, color: pinkD, marginBottom: "12px", marginTop: 0 }}>응답 목록</p>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+                    <p style={{ fontFamily: "'Noto Sans KR',sans-serif", fontSize: "12px", fontWeight: 700, color: pinkD, margin: 0 }}>응답 목록</p>
+                    <button onClick={downloadCSV} style={{ padding: "7px 14px", borderRadius: "8px", border: `1.5px solid ${pink}`, background: pinkL, color: pinkD, fontFamily: "'Noto Sans KR',sans-serif", fontWeight: 700, fontSize: "12px", cursor: "pointer" }}>⬇ CSV 다운로드</button>
+                  </div>
                   {responses.map((r: any, i: number) => (
                     <div key={i} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 0", borderBottom: i < responses.length - 1 ? `1px solid ${grayL}` : "none" }}>
                       <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: pinkL, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 700, color: pinkD, fontFamily: "'Noto Sans KR',sans-serif" }}>{i + 1}</div>
