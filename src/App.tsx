@@ -5,7 +5,7 @@ const DEFAULT_QUESTIONS = [
   { id: 1, text: "교육 내용은 업무에 도움이 되었나요?", type: "scale" },
   { id: 2, text: "강사의 전달력은 어떠했나요?", type: "scale" },
   { id: 3, text: "교육 시간은 적절했나요?", type: "scale" },
-  { id: 4, text: "교육에서 가장 유익했던 점은 무엇인가요?", type: "text" },
+  { id: 4, text: "교육에서 가장 유익했던 점은 무엇인가요?", type: "text" 
   { id: 5, text: "개선이 필요한 부분이 있다면 무엇인가요?", type: "text" },
 ];
 const ADMIN_PW = "hakbigg_2026";
@@ -207,7 +207,7 @@ export default function App() {
       }).join("\n\n");
       try {
         const prompt = `교육 평가 보고서 작성:\n교육명: ${survey.title} | 강사: ${survey.instructor || "미기재"} | 응답자: ${responses.length}명\n\n${summary}\n\n1.종합 만족도(★별점) 2.항목별 분석 3.주관식 인사이트 4.개선 권고 3가지 5.결론`;
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${import.meta.env.VITE_GEMINI_API_KEY}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) });
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${import.meta.env.VITE_GEMINI_API_KEY}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }) });
         const data = await res.json();
         setReport(data.candidates?.[0]?.content?.parts?.[0]?.text || "생성 실패");
       } catch { setReport("오류가 발생했습니다."); }
