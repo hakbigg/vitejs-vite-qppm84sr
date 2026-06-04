@@ -9,8 +9,7 @@ const DEFAULT_QUESTIONS = [
   { id: 5, text: "개선이 필요한 부분이 있다면 무엇인가요?", type: "text" },
 ];
 const ADMIN_PW = "hakbigg_2026";
-const S_KEY = "edu_survey";
-const R_KEY = "edu_responses";
+const DB_URL = "https://edu-survey-app-b1fb0-default-rtdb.firebaseio.com";
 
 const pink = "#f472b6";
 const pinkL = "#fde8f1";
@@ -21,16 +20,25 @@ const grayM = "#d1d5db";
 const grayD = "#374151";
 const BG = "#fdf2f8";
 
-const LS = (k: string) => { try { const d = localStorage.getItem(k); return d ? JSON.parse(d) : null; } catch { return null; } };
-const SS = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+// Firebase REST API helpers
+const dbGet = async (path: string) => {
+  const res = await fetch(`${DB_URL}/${path}.json`);
+  return res.ok ? res.json() : null;
+};
+const dbSet = async (path: string, data: unknown) => {
+  await fetch(`${DB_URL}/${path}.json`, { method: "PUT", body: JSON.stringify(data) });
+};
+const dbPush = async (path: string, data: unknown) => {
+  await fetch(`${DB_URL}/${path}.json`, { method: "POST", body: JSON.stringify(data) });
+};
 
 export default function App() {
   const [page, setPage] = useState(() => window.location.hash.replace("#", ""));
   const [adminAuth, setAdminAuth] = useState(false);
   const [pw, setPw] = useState("");
   const [pwErr, setPwErr] = useState(false);
-  const [survey, setSurveyRaw] = useState(() => LS(S_KEY) || { title: "", instructor: "", date: "", questions: DEFAULT_QUESTIONS, published: false });
-  const [responses, setResponses] = useState(() => LS(R_KEY) || []);
+  const [survey, setSurveyState] = useState<any>(() => ({ title: "", instructor: "", date: "", questions: DEFAULT_QUESTIONS, published: false }));
+  const [responses, setResponses] = useState<any[]>([]);
   const [tab, setTab] = useState("design");
   const [newQ, setNewQ] = useState("");
   const [newQType, setNewQType] = useState("scale");
@@ -40,6 +48,29 @@ export default function App() {
   const [submitted, setSubmitted] = useState(false);
   const [err, setErr] = useState("");
   const [copied, setCopied] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  // Load survey from Firebase
+  useEffect(() => {
+    const load = async () => {
+      const data = await dbGet("survey");
+      if (data) setSurveyState(data);
+      setLoading(false);
+    };
+    load();
+  }, []);
+
+  // Load responses from Firebase
+  useEffect(() => {
+    const loadResponses = async () => {
+      const data = await dbGet("responses");
+      if (data) setResponses(Object.values(data));
+      else setResponses([]);
+    };
+    loadResponses();
+    const t = setInterval(loadResponses, 5000);
+    return () => clearInterval(t);
+  }, []);
 
   useEffect(() => {
     const h = () => setPage(window.location.hash.replace("#", ""));
@@ -47,27 +78,31 @@ export default function App() {
     return () => window.removeEventListener("hashchange", h);
   }, []);
 
-  useEffect(() => {
-    const t = setInterval(() => setResponses(LS(R_KEY) || []), 3000);
-    return () => clearInterval(t);
-  }, []);
-
-  const setSurvey = (fn: (p: typeof survey) => typeof survey) => {
-    setSurveyRaw(prev => { const next = fn(prev); SS(S_KEY, next); return next; });
+  const setSurvey = async (fn: (p: any) => any) => {
+    const next = fn(survey);
+    setSurveyState(next);
+    await dbSet("survey", next);
   };
 
   const base = window.location.href.split("#")[0];
 
-  // ── styles
   const card: React.CSSProperties = { background: "#fff", borderRadius: "16px", padding: "24px", boxShadow: "0 2px 16px rgba(0,0,0,0.06)", marginBottom: "16px" };
-  const inp: React.CSSProperties = { width: "100%", padding: "11px 14px", borderRadius: "10px", border: `1.5px solid ${grayM}`, fontFamily: "'Noto Sans KR',sans-serif", fontSize: "14px", outline: "none", boxSizing: "border-box", background: "#fff", color: "#374151" };
-  const lbl: React.CSSProperties = { fontFamily: "'Noto Sans KR',sans-serif", fontSize: "12px", fontWeight: 700, color: gray, marginBottom: "5px", display: "block" };
+  const inp: React.CSSProperties = { width: "100%", padding: "11px 14px", borderRadius: "10px", border: `1.5px solid ${grayM}`, fontFamily: "'Noto Sans KR',sans-serif", fontSize: "14px", outline: "none", boxSizing: "border-box", background: "#fff", color: grayD };
 
   const PBtn = ({ children, onClick, full }: { children: React.ReactNode; onClick?: () => void; full?: boolean }) => (
     <button onClick={onClick} style={{ padding: "12px 24px", borderRadius: "10px", border: "none", cursor: "pointer", fontFamily: "'Noto Sans KR',sans-serif", fontWeight: 700, fontSize: "14px", background: "linear-gradient(135deg,#f472b6,#f9a8c9)", color: "#fff", boxShadow: "0 4px 14px rgba(244,114,182,0.35)", width: full ? "100%" : undefined }}>{children}</button>
   );
   const GBtn = ({ children, onClick, red }: { children: React.ReactNode; onClick?: () => void; red?: boolean }) => (
     <button onClick={onClick} style={{ padding: "11px 20px", borderRadius: "10px", border: `1.5px solid ${red ? "#fca5a5" : grayM}`, cursor: "pointer", fontFamily: "'Noto Sans KR',sans-serif", fontWeight: 600, fontSize: "14px", background: "#fff", color: red ? "#e11d48" : gray }}>{children}</button>
+  );
+
+  if (loading) return (
+    <div style={{ minHeight: "100vh", background: BG, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ display: "inline-block", width: "40px", height: "40px", border: `3px solid ${pinkL}`, borderTopColor: pink, borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+        <style>{`@keyframes spin{to{transform:rotate(360deg);}}`}</style>
+      </div>
+    </div>
   );
 
   // ── HOME
@@ -121,31 +156,37 @@ export default function App() {
 
   // ── ADMIN PANEL
   if (page === "admin" && adminAuth) {
-    const publish = () => {
+    const publish = async () => {
       if (!survey.title.trim()) { setErr("교육명을 입력해주세요."); return; }
-      setErr(""); setSurvey(d => ({ ...d, published: true })); setTab("dashboard");
+      setErr("");
+      await setSurvey((d: any) => ({ ...d, published: true }));
+      setTab("dashboard");
     };
-    const resetAll = () => {
+    const resetAll = async () => {
       if (!window.confirm("모든 데이터를 초기화할까요?")) return;
-      localStorage.removeItem(S_KEY); localStorage.removeItem(R_KEY);
-      setSurveyRaw({ title: "", instructor: "", date: "", questions: DEFAULT_QUESTIONS, published: false });
-      setResponses([]); setReport(""); setTab("design");
+      const empty = { title: "", instructor: "", date: "", questions: DEFAULT_QUESTIONS, published: false };
+      await dbSet("survey", empty);
+      await dbSet("responses", null);
+      setSurveyState(empty);
+      setResponses([]);
+      setReport("");
+      setTab("design");
     };
     const genReport = async () => {
       setReporting(true); setReport("");
-      const summary = survey.questions.map((q: { id: number; text: string; type: string }) => {
+      const summary = survey.questions.map((q: any) => {
         if (q.type === "scale") {
-          const scores = responses.map((r: { answers: Record<number, number> }) => r.answers[q.id]).filter(Boolean) as number[];
+          const scores = responses.map((r: any) => r.answers[q.id]).filter(Boolean) as number[];
           const avg = scores.length ? (scores.reduce((a: number, b: number) => a + b, 0) / scores.length).toFixed(1) : "N/A";
           return `[척도] ${q.text} - 평균: ${avg}/5.0`;
         }
-        const texts = responses.map((r: { answers: Record<number, string> }) => r.answers[q.id]).filter(Boolean) as string[];
-        return `[주관식] ${q.text}\n${texts.map((t, i) => `(${i+1}) ${t}`).join(" | ")}`;
+        const texts = responses.map((r: any) => r.answers[q.id]).filter(Boolean) as string[];
+        return `[주관식] ${q.text}\n${texts.map((t, i) => `(${i + 1}) ${t}`).join(" | ")}`;
       }).join("\n\n");
       try {
         const res = await fetch("https://api.anthropic.com/v1/messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, messages: [{ role: "user", content: `교육 평가 보고서 작성:\n교육명: ${survey.title} | 강사: ${survey.instructor || "미기재"} | 응답자: ${responses.length}명\n\n${summary}\n\n1.종합 만족도(★별점) 2.항목별 분석 3.주관식 인사이트 4.개선 권고 3가지 5.결론` }] }) });
         const data = await res.json();
-        setReport(data.content?.map((b: { text?: string }) => b.text || "").join("\n") || "생성 실패");
+        setReport(data.content?.map((b: any) => b.text || "").join("\n") || "생성 실패");
       } catch { setReport("오류가 발생했습니다."); }
       setReporting(false);
     };
@@ -179,43 +220,43 @@ export default function App() {
               <div style={card}>
                 <p style={{ fontFamily: "'Noto Sans KR',sans-serif", fontSize: "13px", fontWeight: 700, color: pinkD, marginBottom: "16px", marginTop: 0 }}>📌 교육 기본 정보</p>
                 <div style={{ marginBottom: "12px" }}>
-                  <label style={lbl}>교육명 *</label>
-                  <input style={inp} value={survey.title} onChange={e => setSurvey(d => ({ ...d, title: e.target.value }))} placeholder="예: 2025년 상반기 리더십 교육" />
+                  <label style={{ fontFamily: "'Noto Sans KR',sans-serif", fontSize: "12px", fontWeight: 700, color: gray, marginBottom: "5px", display: "block" }}>교육명 *</label>
+                  <input style={inp} value={survey.title} onChange={e => setSurvey((d: any) => ({ ...d, title: e.target.value }))} placeholder="예: 2025년 상반기 리더십 교육" />
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
                   <div>
-                    <label style={lbl}>강사명</label>
-                    <input style={inp} value={survey.instructor} onChange={e => setSurvey(d => ({ ...d, instructor: e.target.value }))} placeholder="강사 이름" />
+                    <label style={{ fontFamily: "'Noto Sans KR',sans-serif", fontSize: "12px", fontWeight: 700, color: gray, marginBottom: "5px", display: "block" }}>강사명</label>
+                    <input style={inp} value={survey.instructor} onChange={e => setSurvey((d: any) => ({ ...d, instructor: e.target.value }))} placeholder="강사 이름" />
                   </div>
                   <div>
-                    <label style={lbl}>교육 일자</label>
-                    <input style={inp} type="date" value={survey.date} onChange={e => setSurvey(d => ({ ...d, date: e.target.value }))} />
+                    <label style={{ fontFamily: "'Noto Sans KR',sans-serif", fontSize: "12px", fontWeight: 700, color: gray, marginBottom: "5px", display: "block" }}>교육 일자</label>
+                    <input style={inp} type="date" value={survey.date} onChange={e => setSurvey((d: any) => ({ ...d, date: e.target.value }))} />
                   </div>
                 </div>
               </div>
               <div style={card}>
                 <p style={{ fontFamily: "'Noto Sans KR',sans-serif", fontSize: "13px", fontWeight: 700, color: pinkD, marginBottom: "16px", marginTop: 0 }}>📝 설문 항목</p>
-                {survey.questions.map((q: { id: number; text: string; type: string }, i: number) => (
+                {survey.questions.map((q: any, i: number) => (
                   <div key={q.id} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "11px 13px", borderRadius: "10px", background: grayL, marginBottom: "8px" }}>
                     <span style={{ fontWeight: 700, color: pink, fontSize: "13px", minWidth: "20px", fontFamily: "'Noto Sans KR',sans-serif" }}>{i + 1}</span>
                     <span style={{ flex: 1, fontSize: "13px", color: grayD, fontFamily: "'Noto Sans KR',sans-serif" }}>{q.text}</span>
                     <span style={{ fontSize: "11px", padding: "3px 9px", borderRadius: "20px", background: q.type === "scale" ? pinkL : grayL, color: q.type === "scale" ? pinkD : gray, fontWeight: 600, fontFamily: "'Noto Sans KR',sans-serif" }}>{q.type === "scale" ? "5점 척도" : "주관식"}</span>
-                    <button onClick={() => setSurvey(d => ({ ...d, questions: d.questions.filter((x: { id: number }) => x.id !== q.id) }))} style={{ background: "none", border: "none", color: "#e11d48", cursor: "pointer", fontSize: "15px" }}>✕</button>
+                    <button onClick={() => setSurvey((d: any) => ({ ...d, questions: d.questions.filter((x: any) => x.id !== q.id) }))} style={{ background: "none", border: "none", color: "#e11d48", cursor: "pointer", fontSize: "15px" }}>✕</button>
                   </div>
                 ))}
                 <div style={{ display: "flex", gap: "8px", marginTop: "14px", flexWrap: "wrap" }}>
-                  <input style={{ ...inp, flex: 1, minWidth: "180px" }} value={newQ} onChange={e => setNewQ(e.target.value)} placeholder="새 질문 입력" onKeyDown={e => e.key === "Enter" && newQ.trim() && (setSurvey(d => ({ ...d, questions: [...d.questions, { id: Date.now(), text: newQ.trim(), type: newQType }] })), setNewQ(""))} />
-                  <select value={newQType} onChange={e => setNewQType(e.target.value)} style={{ padding: "11px 14px", borderRadius: "10px", border: `1.5px solid ${grayM}`, fontFamily: "'Noto Sans KR',sans-serif", fontSize: "14px", outline: "none", background: "#fff" }}>
+                  <input style={{ ...inp, flex: 1, minWidth: "180px" }} value={newQ} onChange={e => setNewQ(e.target.value)} placeholder="새 질문 입력" onKeyDown={e => { if (e.key === "Enter" && newQ.trim()) { setSurvey((d: any) => ({ ...d, questions: [...d.questions, { id: Date.now(), text: newQ.trim(), type: newQType }] })); setNewQ(""); } }} />
+                  <select value={newQType} onChange={e => setNewQType(e.target.value)} style={{ padding: "11px 14px", borderRadius: "10px", border: `1.5px solid ${grayM}`, fontFamily: "'Noto Sans KR',sans-serif", fontSize: "14px", outline: "none", background: "#fff", color: grayD }}>
                     <option value="scale">5점 척도</option>
                     <option value="text">주관식</option>
                   </select>
-                  <GBtn onClick={() => { if (newQ.trim()) { setSurvey(d => ({ ...d, questions: [...d.questions, { id: Date.now(), text: newQ.trim(), type: newQType }] })); setNewQ(""); } }}>+ 추가</GBtn>
+                  <GBtn onClick={() => { if (newQ.trim()) { setSurvey((d: any) => ({ ...d, questions: [...d.questions, { id: Date.now(), text: newQ.trim(), type: newQType }] })); setNewQ(""); } }}>+ 추가</GBtn>
                 </div>
               </div>
               {err && <p style={{ color: "#e11d48", fontSize: "13px", marginBottom: "12px", fontFamily: "'Noto Sans KR',sans-serif" }}>{err}</p>}
               <div style={{ display: "flex", gap: "10px" }}>
                 <PBtn full onClick={publish}>{survey.published ? "설문 수정 완료 ✓" : "설문 게시 →"}</PBtn>
-                {survey.published && <GBtn onClick={() => setSurvey(d => ({ ...d, published: false }))}>게시 중단</GBtn>}
+                {survey.published && <GBtn onClick={() => setSurvey((d: any) => ({ ...d, published: false }))}>게시 중단</GBtn>}
               </div>
             </>
           )}
@@ -231,8 +272,8 @@ export default function App() {
                   </div>
                 ))}
               </div>
-              {survey.questions.filter((q: { type: string }) => q.type === "scale").map((q: { id: number; text: string }) => {
-                const sc = responses.map((r: { answers: Record<number, number> }) => r.answers[q.id]).filter(Boolean) as number[];
+              {survey.questions.filter((q: any) => q.type === "scale").map((q: any) => {
+                const sc = responses.map((r: any) => r.answers[q.id]).filter(Boolean) as number[];
                 const avg = sc.length ? sc.reduce((a: number, b: number) => a + b, 0) / sc.length : 0;
                 return (
                   <div key={q.id} style={{ background: "#fff", borderRadius: "16px", padding: "16px 20px", boxShadow: "0 2px 16px rgba(0,0,0,0.06)", marginBottom: "10px" }}>
@@ -249,7 +290,7 @@ export default function App() {
               {responses.length > 0 ? (
                 <div style={card}>
                   <p style={{ fontFamily: "'Noto Sans KR',sans-serif", fontSize: "12px", fontWeight: 700, color: pinkD, marginBottom: "12px", marginTop: 0 }}>응답 목록</p>
-                  {responses.map((r: { name: string; submittedAt: string }, i: number) => (
+                  {responses.map((r: any, i: number) => (
                     <div key={i} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "10px 0", borderBottom: i < responses.length - 1 ? `1px solid ${grayL}` : "none" }}>
                       <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: pinkL, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "12px", fontWeight: 700, color: pinkD, fontFamily: "'Noto Sans KR',sans-serif" }}>{i + 1}</div>
                       <span style={{ fontSize: "14px", color: grayD, fontFamily: "'Noto Sans KR',sans-serif" }}>{r.name}</span>
@@ -295,13 +336,12 @@ export default function App() {
 
   // ── RESPONDENT
   if (page === "respondent") {
-    const latestSurvey = LS(S_KEY);
-    if (!latestSurvey || !latestSurvey.published) return (
+    if (!survey || !survey.published) return (
       <div style={{ minHeight: "100vh", background: BG, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", padding: "24px" }}>
         <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&family=Noto+Serif+KR:wght@700&display=swap" rel="stylesheet" />
         <div style={{ fontSize: "48px", marginBottom: "16px" }}>🔒</div>
         <h2 style={{ fontFamily: "'Noto Serif KR',serif", fontSize: "20px", color: grayD, marginBottom: "8px" }}>아직 설문이 준비되지 않았습니다</h2>
-        <p style={{ fontFamily: "'Noto Sans KR',sans-serif", fontSize: "14px", color: gray, marginBottom: "24px", textAlign: "center", lineHeight: 1.7 }}>관리자가 설문을 게시하면 자동으로 열립니다.</p>
+        <p style={{ fontFamily: "'Noto Sans KR',sans-serif", fontSize: "14px", color: gray, textAlign: "center", lineHeight: 1.7 }}>관리자가 설문을 게시하면 자동으로 열립니다.</p>
       </div>
     );
 
@@ -315,13 +355,12 @@ export default function App() {
       </div>
     );
 
-    const submit = () => {
-      const missing = latestSurvey.questions.find((q: { id: number }) => !answers[q.id] && answers[q.id] !== 0);
+    const submit = async () => {
+      const missing = survey.questions.find((q: any) => !answers[q.id] && answers[q.id] !== 0);
       if (missing) { setErr(`"${missing.text}" 항목을 입력해주세요.`); return; }
       setErr("");
-      const existing = LS(R_KEY) || [];
       const now = new Date().toLocaleString("ko-KR", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
-      SS(R_KEY, [...existing, { name: `응답자 ${existing.length + 1}`, answers: { ...answers }, submittedAt: now }]);
+      await dbPush("responses", { name: `응답자`, answers: { ...answers }, submittedAt: now });
       setSubmitted(true);
     };
 
@@ -331,14 +370,14 @@ export default function App() {
         <div style={{ maxWidth: "600px", margin: "0 auto" }}>
           <div style={{ marginBottom: "24px" }}>
             <div style={{ fontSize: "11px", color: pink, fontWeight: 700, fontFamily: "'Noto Sans KR',sans-serif", marginBottom: "4px" }}>교육 평가 설문</div>
-            <h1 style={{ fontFamily: "'Noto Serif KR',serif", fontSize: "20px", color: grayD, margin: "0 0 4px" }}>{latestSurvey.title}</h1>
-            {(latestSurvey.instructor || latestSurvey.date) && (
+            <h1 style={{ fontFamily: "'Noto Serif KR',serif", fontSize: "20px", color: grayD, margin: "0 0 4px" }}>{survey.title}</h1>
+            {(survey.instructor || survey.date) && (
               <p style={{ fontFamily: "'Noto Sans KR',sans-serif", fontSize: "12px", color: gray, margin: 0 }}>
-                {latestSurvey.instructor && `강사: ${latestSurvey.instructor}`}{latestSurvey.instructor && latestSurvey.date && " · "}{latestSurvey.date}
+                {survey.instructor && `강사: ${survey.instructor}`}{survey.instructor && survey.date && " · "}{survey.date}
               </p>
             )}
           </div>
-          {latestSurvey.questions.map((q: { id: number; text: string; type: string }, i: number) => (
+          {survey.questions.map((q: any, i: number) => (
             <div key={q.id} style={card}>
               <div style={{ display: "flex", gap: "10px", alignItems: "flex-start", marginBottom: "16px" }}>
                 <span style={{ width: "26px", height: "26px", borderRadius: "50%", background: pinkL, color: pinkD, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "12px", flexShrink: 0, fontFamily: "'Noto Sans KR',sans-serif" }}>{i + 1}</span>
